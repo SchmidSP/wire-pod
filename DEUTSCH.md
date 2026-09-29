@@ -2,7 +2,9 @@
 
 Dieser Fork von [kercre123/wire-pod](https://github.com/kercre123/wire-pod) spricht und versteht Deutsch. Die Idee entspricht [wire-pod-german](https://github.com/Kolle1979/wire-pod-german) (Piper, Stimme Thorsten, Vosk `de-DE`), ist aber in den echten Sprachpfad von wire-pod eingebaut und nicht nur als lose Dateien abgelegt.
 
-Zusätzlich ist **GPT-6 Luna** (`gpt-6-luna`) das OpenAI-Standardmodell für den Knowledge Graph. GPT-6 Sol und die älteren Modelle bleiben auswählbar. Für Luna/Sol setzt wire-pod `reasoning_effort=low` und `verbosity=low`, damit Vector nicht ewig nachdenkt. Wenn das Modell mit dem Key nicht geht, fällt der Server auf `gpt-4o-mini` zurück.
+Zusätzlich spricht der Knowledge Graph über **Azure AI Foundry**. Deployment **gpt-6-luna** auf `https://ksgptsweden.cognitiveservices.azure.com/openai/v1`, Provider **Custom**. Der alte Responses-Link (`/openai/responses?api-version=2025-04-01-preview`) wird, falls doch eingefügt, auf `/openai/v1` gekürzt. Auth bleibt `Authorization: Bearer`.
+
+GPT-6 Luna lehnt `max_tokens`, `temperature`, `top_p` und die Penalty-Felder ab. Dieser Fork schickt sie nicht. Azure beginnt den Stream mit `choices: []` (Content-Filter). Das wird übersprungen, der Text danach geht an Piper. Action-Tags `{{…}}` werden aus der gesprochenen Antwort entfernt, solange LLM-Actions aus sind. Ein extra Python-Proxy ist nicht nötig.
 
 ## Was Vector auf Deutsch kann
 
@@ -26,7 +28,7 @@ Das lädt Piper und Thorsten nach `%USERPROFILE%\wire-pod-data\` und schreibt `g
 Im Webinterface (Port 8080):
 
 1. STT-Sprache **German (DE)**. Das deutsche Vosk-Modell wird dabei heruntergeladen.
-2. Knowledge Graph: Anbieter **OpenAI**, Modell **gpt-6-luna**, eigenen Key eintragen.
+2. Knowledge Graph: Anbieter **Custom**, Endpoint `https://ksgptsweden.cognitiveservices.azure.com/openai/v1`, Modell **gpt-6-luna**, Azure-Key. **Intent-Graph** an, **LLM-Actions** aus.
 3. **Intent-Graph** einschalten, wenn Vector auch freie Sätze wie „Erzähl mir einen Witz“ an die KI geben soll.
 4. Vector neu verbinden.
 
@@ -38,7 +40,7 @@ Im Webinterface (Port 8080):
 bash setup-german.sh
 ```
 
-Das Skript braucht kein Root. Piper und die Stimme landen in `~/wire-pod-data/`. Danach wire-pod ganz normal mit `STT=vosk` bauen (`setup.sh` im Repo) und im Webinterface **German (DE)** sowie **gpt-6-luna** wählen.
+Das Skript braucht kein Root. Piper und die Stimme landen in `~/wire-pod-data/`. Danach wire-pod mit `STT=vosk` bauen (`setup.sh` im Repo). Im Webinterface **German (DE)** und Knowledge Graph **Custom** mit **gpt-6-luna** wählen. Den Key nur dort eintragen, nicht in `german.env`.
 
 ## Nützliche Sätze
 
@@ -59,7 +61,9 @@ Der letzte Satz ist kein fester Befehl. Dafür muss der Intent-Graph an sein, da
 | `PIPER_BIN` | Pfad zu `piper` bzw. `piper.exe` |
 | `PIPER_MODEL` | Pfad zu `de_DE-thorsten-medium.onnx` |
 | `TTS_SERVICE=piper` | Piper auch dann, wenn die STT-Sprache nicht de-DE ist |
-| `KNOWLEDGE_MODEL` | wird übernommen, wenn im Knowledge Graph noch kein Modell steht |
+| `KNOWLEDGE_PROVIDER` | `custom` für Azure Foundry |
+| `KNOWLEDGE_ENDPOINT` | Basis-URL, ohne `/chat/completions` |
+| `KNOWLEDGE_MODEL` | Deployment-Name `gpt-6-luna`, wenn im Knowledge Graph noch nichts steht |
 
 ## Credits
 

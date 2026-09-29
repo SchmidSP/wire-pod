@@ -2,7 +2,7 @@
 
 Fork von [kercre123/wire-pod](https://github.com/kercre123/wire-pod) für den Anki Vector.
 
-Vector versteht Deutsch und spricht KI-Antworten lokal mit **Piper / Thorsten**. Als Wissensquelle ist **GPT-6 Luna** (`gpt-6-luna`) voreingestellt.
+Vector versteht Deutsch und spricht KI-Antworten lokal mit **Piper / Thorsten**. **GPT-6 Luna** läuft über **Azure AI Foundry** (Provider Custom), nicht über api.openai.com.
 
 Die Idee stammt von [Kolle1979/wire-pod-german](https://github.com/Kolle1979/wire-pod-german). Dort liegen die deutschen Module nur neben dem Code. Hier sind sie im echten Sprachpfad von wire-pod.
 
@@ -14,7 +14,7 @@ Ausführlicher steht dasselbe in [DEUTSCH.md](DEUTSCH.md). Das englische Origina
 - Timer verstehen deutsche Zahlen, auch „fünfundzwanzig Sekunden“.
 - Knowledge Graph und Intent Graph antworten auf Deutsch.
 - Diese Antworten und Lua-`sayText` spricht **Thorsten**, offline. Die Audiodatei geht als 16-kHz-PCM an Vector.
-- OpenAI-Modell standardmäßig **gpt-6-luna**, zusätzlich gpt-6-sol und die älteren Modelle. Für GPT-6 gilt `reasoning_effort=low` und `verbosity=low`. Fällt das Modell aus, wird `gpt-4o-mini` benutzt.
+- OpenAI-kompatibler **Custom**-Provider für Azure Foundry. Für `gpt-6-luna` gehen nur `max_completion_tokens` raus, kein `max_tokens`, keine Sampling-Parameter. Leere Azure-Stream-Chunks (`choices: []`) werden übersprungen. Ein Responses-Link wird auf `/openai/v1` gekürzt. Der Python-Proxy ist damit nicht mehr nötig.
 
 Feste Ansagen der Vector-Firmware (viele eingebaute Befehle) bleiben die Originalstimme. Die kann kein Deutsch.
 
@@ -44,8 +44,8 @@ Piper und die Stimme landen in `~/wire-pod-data/`. Das Setup-Skript braucht kein
 ## Im Webinterface
 
 1. Sprache **German (DE)**. Dabei wird das deutsche Vosk-Modell geladen.
-2. Knowledge Graph: Anbieter **OpenAI**, Modell **gpt-6-luna**, eigenen Key eintragen.
-3. **Intent-Graph** einschalten, damit freie Sätze wie „Erzähl mir einen Witz“ an die KI gehen.
+2. Knowledge Graph: Anbieter **Custom**, Endpoint `https://ksgptsweden.cognitiveservices.azure.com/openai/v1`, Modell **gpt-6-luna**, Azure-Key aus Foundry. Nicht den Link `/openai/responses?api-version=...` eintragen.
+3. **Intent-Graph** an, **LLM-Actions** aus (sonst schickt das Modell `{{playAnimation…}}` und bricht die Ansage ab).
 4. Vector neu verbinden.
 
 ## Sätze zum Ausprobieren
@@ -67,7 +67,9 @@ Der letzte Satz ist kein fester Befehl. Dafür muss der Intent-Graph an sein.
 | `PIPER_BIN` | Pfad zu `piper` oder `piper.exe` |
 | `PIPER_MODEL` | Pfad zu `de_DE-thorsten-medium.onnx` |
 | `TTS_SERVICE=piper` | Piper auch dann nutzen, wenn die STT-Sprache nicht de-DE ist |
-| `KNOWLEDGE_MODEL` | wird übernommen, wenn im Knowledge Graph noch kein Modell steht |
+| `KNOWLEDGE_PROVIDER` | `custom` für Azure Foundry |
+| `KNOWLEDGE_ENDPOINT` | `https://<resource>.cognitiveservices.azure.com/openai/v1` |
+| `KNOWLEDGE_MODEL` | Deployment-Name, hier `gpt-6-luna` |
 
 ## Credits
 

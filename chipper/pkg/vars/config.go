@@ -131,8 +131,19 @@ func ReadConfig() {
 			logger.Println("Setting Together model to Llama3")
 			APIConfig.Knowledge.Model = "meta-llama/Llama-3-70b-chat-hf"
 		}
+		if strings.TrimSpace(APIConfig.Knowledge.Provider) == "" {
+			if p := strings.TrimSpace(os.Getenv("KNOWLEDGE_PROVIDER")); p != "" {
+				APIConfig.Knowledge.Provider = p
+				APIConfig.Knowledge.Enable = true
+			}
+		}
+		if strings.TrimSpace(APIConfig.Knowledge.Endpoint) == "" {
+			if e := strings.TrimSpace(os.Getenv("KNOWLEDGE_ENDPOINT")); e != "" {
+				APIConfig.Knowledge.Endpoint = e
+			}
+		}
 		if strings.TrimSpace(APIConfig.Knowledge.Model) == "" {
-			if m := strings.TrimSpace(os.Getenv("KNOWLEDGE_MODEL")); m != "" && (APIConfig.Knowledge.Provider == "openai" || APIConfig.Knowledge.Provider == "") {
+			if m := strings.TrimSpace(os.Getenv("KNOWLEDGE_MODEL")); m != "" {
 				APIConfig.Knowledge.Model = m
 			}
 		}

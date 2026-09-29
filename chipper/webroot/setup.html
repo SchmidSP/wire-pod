@@ -125,7 +125,7 @@
                 <option value="gpt-4.1-mini">gpt-4.1-mini</option>
                 <option value="gpt-5-mini">gpt-5-mini</option>
               </select>
-              <small class="desc">GPT-6 Luna ist das schnelle, günstige Modell. Für Vector wird reasoning_effort automatisch auf low gesetzt. Fällt das Modell aus, wird gpt-4o-mini benutzt.</small><br />
+              <small class="desc">Nur für api.openai.com. GPT-6 Luna auf Azure Foundry gehört unter Provider <b>Custom</b>, nicht hier.</small><br />
               <label for="openaiKey">GPT Prompt <small class="desc">(leave blank for default):</small></label><br />
               <small><label class="desc" for="openAIPrompt">(default: "You are a helpful, animated robot called
                   Vector. Keep the response concise yet
@@ -146,20 +146,20 @@
             </span>
 
             <span id="customAIInput" style="display: none">
-              <small class="desc">All LLM hosts that have OpenAI API compatibility are supported. For advanced
-                users.</small><br />
-              <label for="customKey">API Key <small class="desc">(for ollama, this is just 'ollama')</small>:</label>
+              <small class="desc">Azure AI Foundry: Provider <b>Custom</b>, Endpoint
+                <code>https://<resource>.cognitiveservices.azure.com/openai/v1</code>
+                (ohne <code>/responses</code> und ohne <code>?api-version</code>),
+                Modell = Deployment-Name, z. B. <code>gpt-6-luna</code>.
+                Den Key aus Foundry unter Keys and Endpoint eintragen.
+                Ein Responses-Link wird automatisch auf <code>/openai/v1</code> gekürzt.
+                Sampling-Parameter schickt dieser Fork bei GPT-6 nicht mit.</small><br />
+              <label for="customKey">API Key <small class="desc">(Azure Key 1 oder Key 2; bei Ollama nur 'ollama')</small>:</label>
               <input type="text" name="customKey" id="customKey" /><br />
-              <label for="customAIEndpoint">API Endpoint <small class="desc">(i.e.
-                  http://localhost:11434/v1)</small>:</label>
-              <input type="text" name="customAIEndpoint" id="customAIEndpoint" /><br />
-              <label for="customModel">LLM Model Name <small class="desc">(i.e. 'llama3')</small>:</label>
-              <input type="text" name="customModel" id="customModel" /><br />
-              <label for="customAIPrompt">LLM Prompt <small class="desc">(leave blank for
-                  default)</small>:</label><br />
-              <small><label class="desc" for="customAIPrompt">(default: "You are a helpful, animated robot called
-                  Vector. Keep the response concise yet
-                  informative.")</label></small>
+              <label for="customAIEndpoint">API Endpoint:</label>
+              <input type="text" name="customAIEndpoint" id="customAIEndpoint" placeholder="https://ksgptsweden.cognitiveservices.azure.com/openai/v1" /><br />
+              <label for="customModel">LLM Model Name <small class="desc">(Deployment-Name, z. B. gpt-6-luna)</small>:</label>
+              <input type="text" name="customModel" id="customModel" placeholder="gpt-6-luna" /><br />
+              <label for="customAIPrompt">LLM Prompt <small class="desc">(leer = deutscher Kurzprompt bei Sprache de-DE)</small>:</label><br />
               <input type="text" name="customAIPrompt" id="customAIPrompt" /><br />
             </span>
 

@@ -42,8 +42,10 @@ cat > "${DATA}/german.env" <<EOF
 PIPER_BIN=${PIPER_DIR}/piper
 PIPER_MODEL=${VOICE}
 TTS_SERVICE=piper
-KNOWLEDGE_MODEL=gpt-6-luna
 STT_LANGUAGE=de-DE
+KNOWLEDGE_PROVIDER=custom
+KNOWLEDGE_MODEL=gpt-6-luna
+KNOWLEDGE_ENDPOINT=https://ksgptsweden.cognitiveservices.azure.com/openai/v1
 EOF
 
 echo "Teste Piper..."
@@ -54,5 +56,5 @@ echo "german.env: ${DATA}/german.env"
 echo
 echo "Als Nächstes im wire-pod-Webinterface:"
 echo "  1. Sprache German (DE)"
-echo "  2. Knowledge Graph: OpenAI, Modell gpt-6-luna, Intent-Graph an"
+echo "  2. Knowledge Graph: Provider Custom, Modell gpt-6-luna, Azure-v1-Endpoint, Intent-Graph an, Actions aus"
 echo "Siehe DEUTSCH.md"

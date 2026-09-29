@@ -36,8 +36,10 @@ $EnvFile = Join-Path $Data "german.env"
 PIPER_BIN=$PiperExe
 PIPER_MODEL=$Voice
 TTS_SERVICE=piper
-KNOWLEDGE_MODEL=gpt-6-luna
 STT_LANGUAGE=de-DE
+KNOWLEDGE_PROVIDER=custom
+KNOWLEDGE_MODEL=gpt-6-luna
+KNOWLEDGE_ENDPOINT=https://ksgptsweden.cognitiveservices.azure.com/openai/v1
 "@ | Set-Content -Path $EnvFile -Encoding ascii
 
 Write-Host "Fertig."
@@ -46,5 +48,5 @@ Write-Host "Stimme: $Voice"
 Write-Host "Umgebung: $EnvFile"
 Write-Host ""
 Write-Host "Wire-pod aus diesem Fork neu bauen und starten."
-Write-Host "Im Webinterface: Sprache German (DE), OpenAI-Modell gpt-6-luna, Intent-Graph an."
+Write-Host "Im Webinterface: Sprache German (DE), Knowledge Graph Provider Custom, Endpoint die Azure-v1-URL, Modell gpt-6-luna, Azure-Key eintragen. Intent-Graph an, LLM-Actions aus."
 Write-Host "Siehe DEUTSCH.md"

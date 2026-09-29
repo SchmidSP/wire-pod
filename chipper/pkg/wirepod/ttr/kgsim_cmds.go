@@ -439,23 +439,7 @@ func DoGetImage(msgs []openai.ChatCompletionMessage, param string, robot *vector
 	var fullfullRespText string
 	var fullRespSlice []string
 	var isDone bool
-	var c *openai.Client
-	switch vars.APIConfig.Knowledge.Provider {
-	case "together":
-		if vars.APIConfig.Knowledge.Model == "" {
-			vars.APIConfig.Knowledge.Model = "meta-llama/Llama-2-70b-chat-hf"
-			vars.WriteConfigToDisk()
-		}
-		conf := openai.DefaultConfig(vars.APIConfig.Knowledge.Key)
-		conf.BaseURL = "https://api.together.xyz/v1"
-		c = openai.NewClientWithConfig(conf)
-	case "openai":
-		c = openai.NewClient(vars.APIConfig.Knowledge.Key)
-	case "custom":
-		conf := openai.DefaultConfig(vars.APIConfig.Knowledge.Key)
-		conf.BaseURL = vars.APIConfig.Knowledge.Endpoint
-		c = openai.NewClientWithConfig(conf)
-	}
+	c := llmClient()
 	ctx := context.Background()
 	speakReady := make(chan string)
 
@@ -468,23 +452,17 @@ func DoGetImage(msgs []openai.ChatCompletionMessage, param string, robot *vector
 		Messages:            msgs,
 		Stream:              true,
 	}
-	if vars.APIConfig.Knowledge.Provider == "openai" {
+	if vars.APIConfig.Knowledge.Provider == "openai" || vars.APIConfig.Knowledge.Provider == "custom" || vars.APIConfig.Knowledge.Model != "" {
 		model := strings.TrimSpace(vars.APIConfig.Knowledge.Model)
-		if model == "" {
+		if model == "" && vars.APIConfig.Knowledge.Provider == "openai" {
 			model = "gpt-6-luna"
 		}
-		aireq.Model = model
-		if isReasoningModel(model) {
-			aireq.ReasoningEffort = "low"
-			aireq.Verbosity = "low"
-			aireq.Temperature = 0
-			aireq.TopP = 0
+		if model != "" {
+			aireq.Model = model
 		}
 		logger.Println("Using " + aireq.Model)
-	} else {
-		logger.Println("Using " + vars.APIConfig.Knowledge.Model)
-		aireq.Model = vars.APIConfig.Knowledge.Model
 	}
+	aireq = shapeChatRequest(aireq)
 	if stopImaging {
 		return
 	}
@@ -547,8 +525,16 @@ func DoGetImage(msgs []openai.ChatCompletionMessage, param string, robot *vector
 				logger.Println("Stream error: " + err.Error())
 				return
 			}
-			fullfullRespText = fullfullRespText + removeSpecialCharacters(response.Choices[0].Delta.Content)
-			fullRespText = fullRespText + removeSpecialCharacters(response.Choices[0].Delta.Content)
+			if len(response.Choices) == 0 {
+				continue
+			}
+			piece := spokenDelta(response.Choices[0].Delta.Content)
+			fullfullRespText = fullfullRespText + piece
+			fullRespText = fullRespText + piece
+			if !vars.APIConfig.Knowledge.CommandsEnable {
+				fullRespText = actionTagRe.ReplaceAllString(fullRespText, " ")
+				fullfullRespText = actionTagRe.ReplaceAllString(fullfullRespText, " ")
+			}
 			if strings.Contains(fullRespText, "...") || strings.Contains(fullRespText, ".'") || strings.Contains(fullRespText, ".\"") || strings.Contains(fullRespText, ".") || strings.Contains(fullRespText, "?") || strings.Contains(fullRespText, "!") {
 				var sepStr string
 				if strings.Contains(fullRespText, "...") {

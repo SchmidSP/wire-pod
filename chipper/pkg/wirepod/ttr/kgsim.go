@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -145,7 +146,7 @@ func CreateAIReq(transcribedText, esn string, gpt3tryagain, isKG bool) openai.Ch
 	if strings.TrimSpace(vars.APIConfig.Knowledge.OpenAIPrompt) != "" {
 		smsg.Content = strings.TrimSpace(vars.APIConfig.Knowledge.OpenAIPrompt)
 	} else if vars.APIConfig.STT.Language == "de-DE" {
-		smsg.Content = "Du bist Vector, ein hilfsbereiter kleiner Roboter. Antworte kurz, freundlich und ausschließlich auf Deutsch, so wie man es laut ausspricht."
+		smsg.Content = "Du bist Vector. Antworte auf Deutsch in ein oder zwei kurzen Saetzen. Keine Emojis, keine Klammern, keine Tags."
 	} else {
 		smsg.Content = defaultPrompt
 	}
@@ -188,20 +189,102 @@ func CreateAIReq(transcribedText, esn string, gpt3tryagain, isKG bool) openai.Ch
 		Messages:            nChat,
 		Stream:              true,
 	}
-	if isReasoningModel(model) {
-		// GPT-6 Luna/Sol (and GPT-5) spend tokens on reasoning. Low effort keeps
-		// Vector responsive; temperature/top_p are rejected by some of these models.
-		aireq.ReasoningEffort = "low"
-		aireq.Verbosity = "low"
-		aireq.Temperature = 0
-		aireq.TopP = 0
-	}
-	return aireq
+	return shapeChatRequest(aireq)
 }
 
 func isReasoningModel(model string) bool {
 	m := strings.ToLower(strings.TrimSpace(model))
 	return strings.HasPrefix(m, "gpt-6") || strings.HasPrefix(m, "gpt-5") || strings.HasPrefix(m, "o1") || strings.HasPrefix(m, "o3") || strings.HasPrefix(m, "o4")
+}
+
+// shapeChatRequest matches what Azure Foundry accepts for gpt-6-luna.
+// The v1 chat endpoint rejects max_tokens, temperature, top_p and the penalty
+// fields. reasoning_effort is only sent to the public OpenAI API.
+func shapeChatRequest(req openai.ChatCompletionRequest) openai.ChatCompletionRequest {
+	azure := isAzureHost(vars.APIConfig.Knowledge.Endpoint)
+	if !isReasoningModel(req.Model) && !azure {
+		return req
+	}
+	req.MaxTokens = 0
+	if req.MaxCompletionTokens == 0 {
+		req.MaxCompletionTokens = 2048
+	}
+	req.Temperature = 0
+	req.TopP = 0
+	req.FrequencyPenalty = 0
+	req.PresencePenalty = 0
+	req.N = 0
+	if vars.APIConfig.Knowledge.Provider == "openai" && !azure && isReasoningModel(req.Model) {
+		if req.ReasoningEffort == "" {
+			req.ReasoningEffort = "low"
+		}
+		if req.Verbosity == "" {
+			req.Verbosity = "low"
+		}
+	} else {
+		req.ReasoningEffort = ""
+		req.Verbosity = ""
+	}
+	return req
+}
+
+func isAzureHost(endpoint string) bool {
+	e := strings.ToLower(endpoint)
+	return strings.Contains(e, "azure.com") || strings.Contains(e, "cognitiveservices")
+}
+
+// normalizeChatEndpoint turns a Foundry "responses" or full completions URL
+// into the OpenAI-compatible base that go-openai appends /chat/completions to.
+func normalizeChatEndpoint(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return raw
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return strings.TrimRight(raw, "/")
+	}
+	u.RawQuery = ""
+	u.Fragment = ""
+	p := strings.TrimRight(u.Path, "/")
+	for _, suf := range []string{"/chat/completions", "/responses", "/completions"} {
+		if strings.HasSuffix(p, suf) {
+			p = strings.TrimSuffix(p, suf)
+		}
+	}
+	if strings.HasSuffix(p, "/openai") {
+		p += "/v1"
+	}
+	u.Path = p
+	return strings.TrimRight(u.String(), "/")
+}
+
+func llmClient() *openai.Client {
+	switch vars.APIConfig.Knowledge.Provider {
+	case "together":
+		if vars.APIConfig.Knowledge.Model == "" {
+			vars.APIConfig.Knowledge.Model = "meta-llama/Llama-3-70b-chat-hf"
+			vars.WriteConfigToDisk()
+		}
+		conf := openai.DefaultConfig(vars.APIConfig.Knowledge.Key)
+		conf.BaseURL = "https://api.together.xyz/v1"
+		return openai.NewClientWithConfig(conf)
+	case "custom":
+		conf := openai.DefaultConfig(vars.APIConfig.Knowledge.Key)
+		conf.BaseURL = normalizeChatEndpoint(vars.APIConfig.Knowledge.Endpoint)
+		return openai.NewClientWithConfig(conf)
+	default:
+		return openai.NewClient(vars.APIConfig.Knowledge.Key)
+	}
+}
+
+var actionTagRe = regexp.MustCompile(`\{\{.*?\}\}`)
+
+func spokenDelta(content string) string {
+	if !vars.APIConfig.Knowledge.CommandsEnable {
+		content = actionTagRe.ReplaceAllString(content, " ")
+	}
+	return removeSpecialCharacters(content)
 }
 
 func modelUnavailable(err error) bool {
@@ -245,9 +328,13 @@ func StreamingKGSim(req interface{}, esn string, transcribedText string, isKG bo
 			return err.Error(), err
 		}
 	}
-	_, err := robot.Conn.BatteryState(context.Background(), &vectorpb.BatteryStateRequest{})
-	if err != nil {
-		return "", err
+	if robot == nil {
+		return "", errors.New("robot not found")
+	}
+	if _, sdkErr := robot.Conn.BatteryState(context.Background(), &vectorpb.BatteryStateRequest{}); sdkErr != nil {
+		// A dead SDK session used to abort before the HTTP call and was logged
+		// as an LLM error. Azure still gets the request.
+		logger.Println("SDK error (BatteryState), LLM request continues: " + sdkErr.Error())
 	}
 	if isKG {
 		BControl(robot, ctx, start, stop)
@@ -271,23 +358,7 @@ func StreamingKGSim(req interface{}, esn string, transcribedText string, isKG bo
 	var fullfullRespText string
 	var fullRespSlice []string
 	var isDone bool
-	var c *openai.Client
-	switch vars.APIConfig.Knowledge.Provider {
-	case "together":
-		if vars.APIConfig.Knowledge.Model == "" {
-			vars.APIConfig.Knowledge.Model = "meta-llama/Llama-3-70b-chat-hf"
-			vars.WriteConfigToDisk()
-		}
-		conf := openai.DefaultConfig(vars.APIConfig.Knowledge.Key)
-		conf.BaseURL = "https://api.together.xyz/v1"
-		c = openai.NewClientWithConfig(conf)
-	case "custom":
-		conf := openai.DefaultConfig(vars.APIConfig.Knowledge.Key)
-		conf.BaseURL = vars.APIConfig.Knowledge.Endpoint
-		c = openai.NewClientWithConfig(conf)
-	case "openai":
-		c = openai.NewClient(vars.APIConfig.Knowledge.Key)
-	}
+	c := llmClient()
 	speakReady := make(chan string)
 	successIntent := make(chan bool)
 
@@ -380,12 +451,18 @@ func StreamingKGSim(req interface{}, esn string, transcribedText string, isKG bo
 			}
 
 			if len(response.Choices) == 0 {
-				logger.Println("Empty response")
-				return
+				// Azure Foundry sends a content-filter event with choices: []
+				// before any text. That is not the end of the stream.
+				continue
 			}
 
-			fullfullRespText = fullfullRespText + removeSpecialCharacters(response.Choices[0].Delta.Content)
-			fullRespText = fullRespText + removeSpecialCharacters(response.Choices[0].Delta.Content)
+			piece := spokenDelta(response.Choices[0].Delta.Content)
+			fullfullRespText = fullfullRespText + piece
+			fullRespText = fullRespText + piece
+			if !vars.APIConfig.Knowledge.CommandsEnable {
+				fullRespText = actionTagRe.ReplaceAllString(fullRespText, " ")
+				fullfullRespText = actionTagRe.ReplaceAllString(fullfullRespText, " ")
+			}
 			if strings.Contains(fullRespText, "...") || strings.Contains(fullRespText, ".'") || strings.Contains(fullRespText, ".\"") || strings.Contains(fullRespText, ".") || strings.Contains(fullRespText, "?") || strings.Contains(fullRespText, "!") {
 				var sepStr string
 				if strings.Contains(fullRespText, "...") {
@@ -417,7 +494,8 @@ func StreamingKGSim(req interface{}, esn string, transcribedText string, isKG bo
 	}()
 	for is := range successIntent {
 		if is {
-			if !isKG {
+			// The firmware hello fights Piper and Azure answers on de-DE.
+			if !isKG && vars.APIConfig.STT.Language != "de-DE" && !isAzureHost(vars.APIConfig.Knowledge.Endpoint) {
 				IntentPass(req, "intent_greeting_hello", transcribedText, map[string]string{}, false)
 			}
 			break

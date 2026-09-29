@@ -3,6 +3,8 @@ package vars
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/kercre123/wire-pod/chipper/pkg/logger"
 )
@@ -92,6 +94,7 @@ func WriteSTT() {
 }
 
 func ReadConfig() {
+	loadOptionalEnvFile()
 	if _, err := os.Stat(ApiConfigPath); err != nil {
 		CreateConfigFromEnv()
 		logger.Println("API config JSON created")
@@ -128,9 +131,52 @@ func ReadConfig() {
 			logger.Println("Setting Together model to Llama3")
 			APIConfig.Knowledge.Model = "meta-llama/Llama-3-70b-chat-hf"
 		}
+		if strings.TrimSpace(APIConfig.Knowledge.Model) == "" {
+			if m := strings.TrimSpace(os.Getenv("KNOWLEDGE_MODEL")); m != "" && (APIConfig.Knowledge.Provider == "openai" || APIConfig.Knowledge.Provider == "") {
+				APIConfig.Knowledge.Model = m
+			}
+		}
 
 		writeBytes, _ := json.Marshal(APIConfig)
 		os.WriteFile(ApiConfigPath, writeBytes, 0644)
 		logger.Println("API config successfully read")
+	}
+}
+
+// loadOptionalEnvFile reads ~/wire-pod-data/german.env (or german.env next to chipper)
+// so Windows and Linux installs can point at Piper without editing the service by hand.
+func loadOptionalEnvFile() {
+	home, _ := os.UserHomeDir()
+	candidates := []string{}
+	if p := strings.TrimSpace(os.Getenv("WIREPOD_GERMAN_ENV")); p != "" {
+		candidates = append(candidates, p)
+	}
+	if home != "" {
+		candidates = append(candidates, filepath.Join(home, "wire-pod-data", "german.env"))
+	}
+	candidates = append(candidates, "german.env", filepath.Join("..", "german.env"))
+	for _, path := range candidates {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		logger.Println("Loading environment file " + path)
+		for _, line := range strings.Split(string(raw), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			key, val, ok := strings.Cut(line, "=")
+			if !ok {
+				continue
+			}
+			key = strings.TrimSpace(key)
+			val = strings.Trim(strings.TrimSpace(val), `"'`)
+			if key == "" || os.Getenv(key) != "" {
+				continue
+			}
+			_ = os.Setenv(key, val)
+		}
+		return
 	}
 }

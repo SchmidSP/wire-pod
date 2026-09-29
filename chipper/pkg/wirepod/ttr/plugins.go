@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/kercre123/wire-pod/chipper/pkg/logger"
+	"github.com/kercre123/wire-pod/chipper/pkg/scripting"
 )
 
 var PluginList []*plugin.Plugin
@@ -14,6 +15,7 @@ var PluginFunctions []func(string, string, string, string) (string, string)
 var PluginNames []string
 
 func LoadPlugins() {
+	scripting.SayTextHook = DoSayText
 	logger.Println("Loading plugins")
 	entries, err := os.ReadDir("./plugins")
 	if err != nil {

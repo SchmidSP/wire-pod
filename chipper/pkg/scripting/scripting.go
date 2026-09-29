@@ -61,9 +61,14 @@ type Bot struct {
 	Robot *vector.Vector
 }
 
+var SayTextHook func(text string, robot *vector.Vector) error
+
 func sayText(L *lua.LState) int {
 	textToSay := L.ToString(1)
 	executeWithGoroutine(L, func(L *lua.LState) error {
+		if SayTextHook != nil {
+			return SayTextHook(textToSay, gRfLS(L))
+		}
 		_, err := gRfLS(L).Conn.SayText(L.Context(), &vectorpb.SayTextRequest{Text: textToSay, UseVectorVoice: true, DurationScalar: 1.0})
 		return err
 	}, false)

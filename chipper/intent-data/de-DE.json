@@ -121,7 +121,7 @@
   },
   {
     "name": "intent_imperative_backup",
-    "keyphrases": [ "Zurück", "Abrechen", "Abbruch" ]
+    "keyphrases": [ "Zurück", "Abrechen", "Abbrechen", "Abbruch" ]
   },
   {
     "name": "intent_imperative_volumedown",
@@ -170,11 +170,11 @@
   },
   {
     "name": "intent_clock_settimer_extend",
-    "keyphrases": [ "Starte den Timer", "Starte den Countdown", "Starte Timer", "Starte Countdown", "Beginne den Timer", "Beginne den Countdown", "Beginne Timer", "Beginne Countdown", "Stelle einen Timer", "Stelle einen Timer für", "Stell einen Timer", "Stell einen Timer für", "Stelle einen Countdown", "Stelle einen Countdown für", "Stell einen Countdown", "Stell einen Countdown für" ]
+    "keyphrases": [ "Starte den Timer", "Starte den Countdown", "Starte Timer", "Starte Countdown", "Beginne den Timer", "Beginne den Countdown", "Beginne Timer", "Beginne Countdown", "Stelle einen Timer", "Stelle einen Timer für", "Stell einen Timer", "Stell einen Timer für", "Stelle einen Countdown", "Stelle einen Countdown für", "Stell einen Countdown", "Stell einen Countdown für", "Timer für", "Stell den Timer auf" ]
   },
   {
     "name": "intent_clock_time",
-    "keyphrases": [ "Wie ist die Uhrzeit jetzt", "Wie ist die Uhrzeit", "Wie spät ist es", "Wie ist die Zeit", "Wieviel Uhr ist es", "Wieviel Uhr haben wir", "Uhrzeit", "Zeig mir die Uhrzeit", "Zeige die Uhrzeit", "Zeig die Uhrzeit", "Uhrzeit anzeigen", "Uhrzeit zeigen", "Uhrzeit ansehen", "Uhrzeit sagen", "Sag mir die Uhrzeit", "Sage mir die Uhrzeit" ]
+    "keyphrases": [ "Wie ist die Uhrzeit jetzt", "Wie ist die Uhrzeit", "Wie spät ist es", "Wie spät haben wir es", "Wie viel Uhr ist es", "Wieviel Uhr ist es", "Wie ist die Zeit", "Wieviel Uhr haben wir", "Uhrzeit", "Zeig mir die Uhrzeit", "Zeige die Uhrzeit", "Zeig die Uhrzeit", "Uhrzeit anzeigen", "Uhrzeit zeigen", "Uhrzeit ansehen", "Uhrzeit sagen", "Sag mir die Uhrzeit", "Sage mir die Uhrzeit", "Sag mir die Zeit" ]
   },
   {
     "name": "intent_imperative_quiet",

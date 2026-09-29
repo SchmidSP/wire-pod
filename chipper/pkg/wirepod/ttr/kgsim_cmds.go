@@ -151,6 +151,9 @@ func ModelIsSupported(cmd LLMCommand, model string) bool {
 
 func CreatePrompt(origPrompt string, model string, isKG bool) string {
 	prompt := origPrompt + "\n\n" + "Keep in mind, user input comes from speech-to-text software, so respond accordingly. No special characters, especially these: & ^ * # @ - . No lists. No formatting."
+	if vars.APIConfig.STT.Language == "de-DE" {
+		prompt += "\n\nDer Nutzer spricht Deutsch. Antworte IMMER nur auf Deutsch, in kurzen gesprochenen Sätzen. Kein Englisch, kein Markdown, keine Aufzählungen, keine Emojis."
+	}
 	if vars.APIConfig.Knowledge.CommandsEnable {
 		prompt = prompt + "\n\n" + "You are running ON an Anki Vector robot. You have a set of commands. If you include an emoji, I will make you start over. If you want to use a command but it doesn't exist or your desired parameter isn't in the list, avoid using the command. The format is {{command||parameter}}. You can embed these in sentences. Example: \"User: How are you feeling? | Response: \"{{playAnimationWI||sad}} I'm feeling sad...\". Square brackets ([]) are not valid.\n\nUse the playAnimation or playAnimationWI commands if you want to express emotion! You are very animated and good at following instructions. Animation takes precendence over words. You are to include many animations in your response.\n\nHere is every valid command:"
 		for _, cmd := range ValidLLMCommands {
@@ -290,6 +293,14 @@ func DoSayText(input string, robot *vector.Vector) error {
 	// just before vector speaks
 	removeSpecialCharacters(input)
 
+	if piperShouldSpeak() {
+		if err := DoSayText_Piper(robot, input); err != nil {
+			logger.Println("Piper TTS fehlgeschlagen, Fallback: " + err.Error())
+		} else {
+			return nil
+		}
+	}
+
 	if (vars.APIConfig.STT.Language != "en-US" && vars.APIConfig.Knowledge.Provider == "openai") || vars.APIConfig.Knowledge.OpenAIVoiceWithEnglish {
 		err := DoSayText_OpenAI(robot, input)
 		return err
@@ -349,45 +360,8 @@ func DoSayText_OpenAI(robot *vector.Vector, input string) error {
 		return err
 	}
 	speechBytes, _ := io.ReadAll(resp)
-	vclient, err := robot.Conn.ExternalAudioStreamPlayback(context.Background())
-	if err != nil {
-		return err
-	}
-	vclient.Send(&vectorpb.ExternalAudioStreamRequest{
-		AudioRequestType: &vectorpb.ExternalAudioStreamRequest_AudioStreamPrepare{
-			AudioStreamPrepare: &vectorpb.ExternalAudioStreamPrepare{
-				AudioFrameRate: 16000,
-				AudioVolume:    100,
-			},
-		},
-	})
-	//time.Sleep(time.Millisecond * 30)
 	audioChunks := downsample24kTo16k(speechBytes)
-
-	var chunksToDetermineLength []byte
-	for _, chunk := range audioChunks {
-		chunksToDetermineLength = append(chunksToDetermineLength, chunk...)
-	}
-	go func() {
-		for _, chunk := range audioChunks {
-			vclient.Send(&vectorpb.ExternalAudioStreamRequest{
-				AudioRequestType: &vectorpb.ExternalAudioStreamRequest_AudioStreamChunk{
-					AudioStreamChunk: &vectorpb.ExternalAudioStreamChunk{
-						AudioChunkSizeBytes: 1024,
-						AudioChunkSamples:   chunk,
-					},
-				},
-			})
-			time.Sleep(time.Millisecond * 25)
-		}
-		vclient.Send(&vectorpb.ExternalAudioStreamRequest{
-			AudioRequestType: &vectorpb.ExternalAudioStreamRequest_AudioStreamComplete{
-				AudioStreamComplete: &vectorpb.ExternalAudioStreamComplete{},
-			},
-		})
-	}()
-	time.Sleep(pcmLength(chunksToDetermineLength) + (time.Millisecond * 50))
-	return nil
+	return streamAudioChunks(robot, audioChunks)
 }
 
 func DoGetImage(msgs []openai.ChatCompletionMessage, param string, robot *vector.Vector, stopStop chan bool) {
@@ -495,7 +469,17 @@ func DoGetImage(msgs []openai.ChatCompletionMessage, param string, robot *vector
 		Stream:              true,
 	}
 	if vars.APIConfig.Knowledge.Provider == "openai" {
-		aireq.Model = openai.GPT4oMini
+		model := strings.TrimSpace(vars.APIConfig.Knowledge.Model)
+		if model == "" {
+			model = "gpt-6-luna"
+		}
+		aireq.Model = model
+		if isReasoningModel(model) {
+			aireq.ReasoningEffort = "low"
+			aireq.Verbosity = "low"
+			aireq.Temperature = 0
+			aireq.TopP = 0
+		}
 		logger.Println("Using " + aireq.Model)
 	} else {
 		logger.Println("Using " + vars.APIConfig.Knowledge.Model)
@@ -506,10 +490,14 @@ func DoGetImage(msgs []openai.ChatCompletionMessage, param string, robot *vector
 	}
 	stream, err := c.CreateChatCompletionStream(ctx, aireq)
 	if err != nil {
-		if strings.Contains(err.Error(), "does not exist") && vars.APIConfig.Knowledge.Provider == "openai" {
-			logger.Println("GPT-4 model cannot be accessed with this API key. You likely need to add more than $5 dollars of funds to your OpenAI account.")
-			logger.LogUI("GPT-4 model cannot be accessed with this API key. You likely need to add more than $5 dollars of funds to your OpenAI account.")
-			aireq.Model = openai.GPT3Dot5Turbo
+		if modelUnavailable(err) && vars.APIConfig.Knowledge.Provider == "openai" && aireq.Model != openai.GPT4oMini {
+			logger.Println("Vision-Modell " + aireq.Model + " nicht nutzbar. Fallback auf gpt-4o-mini.")
+			logger.LogUI("Vision-Modell nicht nutzbar. Fallback auf gpt-4o-mini.")
+			aireq.Model = openai.GPT4oMini
+			aireq.ReasoningEffort = ""
+			aireq.Verbosity = ""
+			aireq.Temperature = 1
+			aireq.TopP = 1
 			logger.Println("Falling back to " + aireq.Model)
 			logger.LogUI("Falling back to " + aireq.Model)
 			stream, err = c.CreateChatCompletionStream(ctx, aireq)

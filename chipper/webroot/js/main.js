@@ -300,6 +300,7 @@ function sendKGAPIKey() {
   };
   if (provider === "openai") {
     data.key = getE("openaiKey").value;
+    data.model = getE("openaiModel").value || "gpt-6-luna";
     data.openai_prompt = getE("openAIPrompt").value;
     data.intentgraph = getE("intentyes").checked
     data.save_chat = getE("saveChatYes").checked
@@ -360,6 +361,7 @@ function updateKGAPI() {
       getE("kgProvider").value = data.provider;
       if (data.provider === "openai") {
         getE("openaiKey").value = data.key;
+        getE("openaiModel").value = data.model || "gpt-6-luna";
         getE("openAIPrompt").value = data.openai_prompt;
         getE("openaiVoice").value = data.openai_voice;
         getE("commandYes").checked = data.commands_enable

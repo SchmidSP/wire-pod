@@ -144,6 +144,8 @@ func CreateAIReq(transcribedText, esn string, gpt3tryagain, isKG bool) openai.Ch
 	}
 	if strings.TrimSpace(vars.APIConfig.Knowledge.OpenAIPrompt) != "" {
 		smsg.Content = strings.TrimSpace(vars.APIConfig.Knowledge.OpenAIPrompt)
+	} else if vars.APIConfig.STT.Language == "de-DE" {
+		smsg.Content = "Du bist Vector, ein hilfsbereiter kleiner Roboter. Antworte kurz, freundlich und ausschließlich auf Deutsch, so wie man es laut ausspricht."
 	} else {
 		smsg.Content = defaultPrompt
 	}
@@ -151,9 +153,9 @@ func CreateAIReq(transcribedText, esn string, gpt3tryagain, isKG bool) openai.Ch
 	var model string
 
 	if gpt3tryagain {
-		model = openai.GPT3Dot5Turbo
-	} else if vars.APIConfig.Knowledge.Provider == "openai" {
 		model = openai.GPT4oMini
+	} else if vars.APIConfig.Knowledge.Provider == "openai" {
+		model = "gpt-6-luna"
 		if m := strings.TrimSpace(vars.APIConfig.Knowledge.Model); m != "" {
 			model = m
 		}
@@ -186,7 +188,35 @@ func CreateAIReq(transcribedText, esn string, gpt3tryagain, isKG bool) openai.Ch
 		Messages:            nChat,
 		Stream:              true,
 	}
+	if isReasoningModel(model) {
+		// GPT-6 Luna/Sol (and GPT-5) spend tokens on reasoning. Low effort keeps
+		// Vector responsive; temperature/top_p are rejected by some of these models.
+		aireq.ReasoningEffort = "low"
+		aireq.Verbosity = "low"
+		aireq.Temperature = 0
+		aireq.TopP = 0
+	}
 	return aireq
+}
+
+func isReasoningModel(model string) bool {
+	m := strings.ToLower(strings.TrimSpace(model))
+	return strings.HasPrefix(m, "gpt-6") || strings.HasPrefix(m, "gpt-5") || strings.HasPrefix(m, "o1") || strings.HasPrefix(m, "o3") || strings.HasPrefix(m, "o4")
+}
+
+func modelUnavailable(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "does not exist") || strings.Contains(msg, "model_not_found") || strings.Contains(msg, "invalid model") || strings.Contains(msg, "model not found")
+}
+
+func llmErrorText() string {
+	if vars.APIConfig.STT.Language == "de-DE" {
+		return "Es gab einen Fehler bei der KI."
+	}
+	return "There was an error getting data from the L. L. M."
 }
 
 func StreamingKGSim(req interface{}, esn string, transcribedText string, isKG bool) (string, error) {
@@ -266,10 +296,10 @@ func StreamingKGSim(req interface{}, esn string, transcribedText string, isKG bo
 	stream, err := c.CreateChatCompletionStream(ctx, aireq)
 	if err != nil {
 		log.Printf("Error creating chat completion stream: %v", err)
-		if strings.Contains(err.Error(), "does not exist") && vars.APIConfig.Knowledge.Provider == "openai" {
-			logger.Println("GPT-4 model cannot be accessed with this API key. You likely need to add more than $5 dollars of funds to your OpenAI account.")
-			logger.LogUI("GPT-4 model cannot be accessed with this API key. You likely need to add more than $5 dollars of funds to your OpenAI account.")
-			aireq := CreateAIReq(transcribedText, esn, true, isKG)
+		if modelUnavailable(err) && vars.APIConfig.Knowledge.Provider == "openai" && aireq.Model != openai.GPT4oMini {
+			logger.Println("Model " + aireq.Model + " ist mit diesem Key nicht nutzbar (" + err.Error() + "). Fallback auf gpt-4o-mini.")
+			logger.LogUI("Model " + aireq.Model + " ist nicht nutzbar. Fallback auf gpt-4o-mini.")
+			aireq = CreateAIReq(transcribedText, esn, true, isKG)
 			logger.Println("Falling back to " + aireq.Model)
 			logger.LogUI("Falling back to " + aireq.Model)
 			stream, err = c.CreateChatCompletionStream(ctx, aireq)
@@ -285,7 +315,7 @@ func StreamingKGSim(req interface{}, esn string, transcribedText string, isKG bo
 				}
 				stop <- true
 				time.Sleep(time.Second / 3)
-				KGSim(esn, "There was an error getting data from the L. L. M.")
+				KGSim(esn, llmErrorText())
 			}
 			return "", err
 		}
@@ -310,7 +340,7 @@ func StreamingKGSim(req interface{}, esn string, transcribedText string, isKG bo
 						}
 						stop <- true
 						time.Sleep(time.Second / 3)
-						KGSim(esn, "There was an error getting data from the L. L. M.")
+						KGSim(esn, llmErrorText())
 					}
 					break
 				}
@@ -619,14 +649,7 @@ func KGSim(esn string, textToSay string) error {
 			}()
 			textToSaySplit := strings.Split(textToSay, ". ")
 			for _, str := range textToSaySplit {
-				_, err := robot.Conn.SayText(
-					ctx,
-					&vectorpb.SayTextRequest{
-						Text:           str + ".",
-						UseVectorVoice: true,
-						DurationScalar: 1.0,
-					},
-				)
+				err := DoSayText(str+".", robot)
 				if err != nil {
 					logger.Println("KG SayText error: " + err.Error())
 					stop <- true

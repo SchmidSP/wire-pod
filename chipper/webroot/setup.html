@@ -116,6 +116,16 @@
             <span id="openAIInput" style="display: none">
               <label for="openaiKey">OpenAI Key:</label>
               <input type="text" name="openaiKey" id="openaiKey" /><br />
+              <label for="openaiModel">OpenAI-Modell:</label><br />
+              <select name="openaiModel" id="openaiModel">
+                <option value="gpt-6-luna" selected>gpt-6-luna (GPT-6 Luna, empfohlen)</option>
+                <option value="gpt-6-sol">gpt-6-sol (GPT-6 Sol)</option>
+                <option value="gpt-4o-mini">gpt-4o-mini (bisheriger Standard)</option>
+                <option value="gpt-4o">gpt-4o</option>
+                <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+                <option value="gpt-5-mini">gpt-5-mini</option>
+              </select>
+              <small class="desc">GPT-6 Luna ist das schnelle, günstige Modell. Für Vector wird reasoning_effort automatisch auf low gesetzt. Fällt das Modell aus, wird gpt-4o-mini benutzt.</small><br />
               <label for="openaiKey">GPT Prompt <small class="desc">(leave blank for default):</small></label><br />
               <small><label class="desc" for="openAIPrompt">(default: "You are a helpful, animated robot called
                   Vector. Keep the response concise yet
@@ -210,7 +220,7 @@
       <div id="section-language" style="display: none">
         <h2>STT Language</h2>
         <hr class="small-hr">
-        <p>Set the speech-to-text language you'd like wire-pod to use.</p>
+        <p>Set the speech-to-text language you'd like wire-pod to use. Für Deutsch German (DE) wählen. Gesprochene KI-Antworten nutzen Piper/Thorsten, sobald die Stimme liegt (siehe DEUTSCH.md).</p>
         <hr class="small-hr">
         <div id="languageStatus"></div>
         <div id="languageSelectionDiv">

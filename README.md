@@ -4,6 +4,8 @@
 
 It allows voice commands to work with any Vector 1.0 or 2.0 for no fee, including regular production robots.
 
+**Deutsch / GPT-6 Luna:** dieser Fork versteht Deutsch (Vosk `de-DE`), spricht KI-Antworten lokal mit Piper/Thorsten und nutzt standardmäßig das OpenAI-Modell `gpt-6-luna`. Anleitung: [DEUTSCH.md](DEUTSCH.md). Windows: `install-german.ps1`. Linux/Pi: `setup-german.sh`.
+
 ## Installation
 
 The installation guide exists on the wiki: [Installation guide](https://github.com/kercre123/wire-pod/wiki/Installation)

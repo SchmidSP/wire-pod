@@ -1,30 +1,78 @@
-# wire-pod
+# wire-pod Deutsch
 
-`wire-pod` is fully-featured server software for the Anki (now Digital Dream Labs) [Vector](https://web.archive.org/web/20190417120536if_/https://www.anki.com/en-us/vector) robot. It was created thanks to Digital Dream Labs' [open-sourced code](https://github.com/digital-dream-labs/chipper).
+Fork von [kercre123/wire-pod](https://github.com/kercre123/wire-pod) für den Anki Vector.
 
-It allows voice commands to work with any Vector 1.0 or 2.0 for no fee, including regular production robots.
+Vector versteht Deutsch und spricht KI-Antworten lokal mit **Piper / Thorsten**. Als Wissensquelle ist **GPT-6 Luna** (`gpt-6-luna`) voreingestellt.
 
-**Deutsch / GPT-6 Luna:** dieser Fork versteht Deutsch (Vosk `de-DE`), spricht KI-Antworten lokal mit Piper/Thorsten und nutzt standardmäßig das OpenAI-Modell `gpt-6-luna`. Anleitung: [DEUTSCH.md](DEUTSCH.md). Windows: `install-german.ps1`. Linux/Pi: `setup-german.sh`.
+Die Idee stammt von [Kolle1979/wire-pod-german](https://github.com/Kolle1979/wire-pod-german). Dort liegen die deutschen Module nur neben dem Code. Hier sind sie im echten Sprachpfad von wire-pod.
 
-## Installation
+Ausführlicher steht dasselbe in [DEUTSCH.md](DEUTSCH.md). Das englische Original-Wiki gilt weiter für Installation, Zertifikate und Vector-Setup: [Installation](https://github.com/kercre123/wire-pod/wiki/Installation).
 
-The installation guide exists on the wiki: [Installation guide](https://github.com/kercre123/wire-pod/wiki/Installation)
+## Was dieser Fork ändert
 
-## Wiki
+- Spracherkennung **German (DE)** über das Vosk-Modell `de-DE`.
+- Timer verstehen deutsche Zahlen, auch „fünfundzwanzig Sekunden“.
+- Knowledge Graph und Intent Graph antworten auf Deutsch.
+- Diese Antworten und Lua-`sayText` spricht **Thorsten**, offline. Die Audiodatei geht als 16-kHz-PCM an Vector.
+- OpenAI-Modell standardmäßig **gpt-6-luna**, zusätzlich gpt-6-sol und die älteren Modelle. Für GPT-6 gilt `reasoning_effort=low` und `verbosity=low`. Fällt das Modell aus, wird `gpt-4o-mini` benutzt.
 
-Check out the [wiki](https://github.com/kercre123/wire-pod/wiki) for more information on what wire-pod is, a guide on how to install wire-pod, troubleshooting, how to develop for it, and for some generally helpful tips.
+Feste Ansagen der Vector-Firmware (viele eingebaute Befehle) bleiben die Originalstimme. Die kann kein Deutsch.
 
-## Donate
+## Windows
 
-If you want to :P
+Die fertige Installation von kercre123 enthält diesen Code nicht. Dieser Fork muss selbst gebaut werden.
 
-[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/kercre123)
+```powershell
+git clone https://github.com/SchmidSP/wire-pod.git
+cd wire-pod
+powershell -ExecutionPolicy Bypass -File .\install-german.ps1
+```
+
+Das Skript lädt Piper und die Stimme Thorsten nach `%USERPROFILE%\wire-pod-data\` und schreibt `german.env`. Diese Datei liest wire-pod beim Start. Danach chipper wie im [Wiki](https://github.com/kercre123/wire-pod/wiki/Installation) bauen und starten.
+
+## Linux und Raspberry Pi
+
+```bash
+git clone https://github.com/SchmidSP/wire-pod.git
+cd wire-pod
+bash setup-german.sh
+sudo STT=vosk ./setup.sh
+```
+
+Piper und die Stimme landen in `~/wire-pod-data/`. Das Setup-Skript braucht kein Root.
+
+## Im Webinterface
+
+1. Sprache **German (DE)**. Dabei wird das deutsche Vosk-Modell geladen.
+2. Knowledge Graph: Anbieter **OpenAI**, Modell **gpt-6-luna**, eigenen Key eintragen.
+3. **Intent-Graph** einschalten, damit freie Sätze wie „Erzähl mir einen Witz“ an die KI gehen.
+4. Vector neu verbinden.
+
+## Sätze zum Ausprobieren
+
+```text
+Hey Vector, wie ist das Wetter
+Hey Vector, wie spät ist es
+Hey Vector, stell einen Timer für fünf Minuten
+Hey Vector, ich habe eine Frage
+Hey Vector, erzähl mir einen Witz
+```
+
+Der letzte Satz ist kein fester Befehl. Dafür muss der Intent-Graph an sein.
+
+## Variablen
+
+| Variable | Bedeutung |
+| --- | --- |
+| `PIPER_BIN` | Pfad zu `piper` oder `piper.exe` |
+| `PIPER_MODEL` | Pfad zu `de_DE-thorsten-medium.onnx` |
+| `TTS_SERVICE=piper` | Piper auch dann nutzen, wenn die STT-Sprache nicht de-DE ist |
+| `KNOWLEDGE_MODEL` | wird übernommen, wenn im Knowledge Graph noch kein Modell steht |
 
 ## Credits
 
-- [Digital Dream Labs](https://github.com/digital-dream-labs) for open sourcing chipper and creating escape pod (which made this possible)
-- [bliteknight](https://github.com/bliteknight) for making wire-pod more accessible with his easy-to-use pre-setup Linux boxes
-- [dietb](https://github.com/dietb) for rewriting chipper and giving tips
-- [fforchino](https://github.com/fforchino) for adding many features such as localization and multilanguage, and for helping out
-- [xanathon](https://github.com/xanathon) for the publicity and web interface help
-- Anyone who has opened an issue and/or created a pull request for wire-pod
+- [Digital Dream Labs](https://github.com/digital-dream-labs) für chipper und Escape Pod
+- [kercre123/wire-pod](https://github.com/kercre123/wire-pod) und die genannten Mitwirkenden: bliteknight, dietb, fforchino, xanathon
+- [Kolle1979/wire-pod-german](https://github.com/Kolle1979/wire-pod-german) für die deutsche Piper-Idee
+- Piper und die Stimme Thorsten: Rhasspy / Thorsten Müller
+- Vosk: Alpha Cephei

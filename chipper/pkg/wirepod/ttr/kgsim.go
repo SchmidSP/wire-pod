@@ -78,6 +78,7 @@ func isMn(r rune) bool {
 		'\u0302', // Dấu mũ (â, ê, ô)
 		'\u031B', // Dấu ơ và ư
 		'\u0306', // Dấu trầm
+		'\u0308', // ä ö ü Ä Ö Ü (Piper/Thorsten)
 	}
 	if unicode.Is(unicode.Mn, r) {
 		for _, mark := range keepMarks {

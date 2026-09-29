@@ -55,3 +55,11 @@ func TestSpokenDeltaStripsActionTagsWhenCommandsOff(t *testing.T) {
 		t.Fatalf("speech lost: %q", got)
 	}
 }
+
+func TestRemoveSpecialCharactersKeepsGermanUmlauts(t *testing.T) {
+	got := removeSpecialCharacters("für berühmter Relativitätstheorie Größe")
+	want := "für berühmter Relativitätstheorie Größe"
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
